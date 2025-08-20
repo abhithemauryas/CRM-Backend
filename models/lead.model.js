@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const { search } = require("../routes/authRoutes");
 
 const leadSchema = new mongoose.Schema(
   {
@@ -31,6 +30,7 @@ const leadSchema = new mongoose.Schema(
         "primary",
       ],
     },
+    
     assigned: {
   type: [String],
 },
@@ -49,7 +49,7 @@ const leadSchema = new mongoose.Schema(
     address: String,
     description: String,
     country: String,
-    states: String,
+    state: String,
     citys: String,
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -59,4 +59,8 @@ const leadSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Lead", leadSchema);
+const leadModel =mongoose.model("Lead", leadSchema);
+
+module.exports = leadModel
+
+
