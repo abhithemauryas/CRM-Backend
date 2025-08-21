@@ -2,73 +2,74 @@ const express = require("express");
 const leadModel = require("../models/lead.model");
 const authenticateToken = require("../middleware/authMiddleware");
 const leadsRouter = express.Router();
-// multer for export excell sheet 
 const multer = require("multer");
 const xlsx = require("xlsx");
-const path = require("path");
-// const XLSX = require("xlsx");
-// Setup multer for file upload
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/"); // create this folder if not exists
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+
+// ✅ Use memory storage (safe for Render / Vercel)
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// ✅ Excel upload route
+leadsRouter.post(
+  "/lead/import-excel",
+  authenticateToken,
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // ✅ Read Excel from memory buffer
+      const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const data = xlsx.utils.sheet_to_json(sheet);
+
+      // ✅ Format leads
+      const formattedLeads = data.map((item) => ({
+        status: item.status || "new",
+        source: item.source || "others",
+        visibility: item.visibility || "private",
+        tags:
+          typeof item.tags === "string"
+            ? item.tags.split(",").map((t) => t.trim())
+            : Array.isArray(item.tags)
+            ? item.tags
+            : [],
+        assigned:
+          typeof item.assigned === "string"
+            ? item.assigned.split(",").map((a) => a.trim())
+            : Array.isArray(item.assigned)
+            ? item.assigned
+            : [],
+        groups: item.groups || "",
+
+        name: item.name,
+        email: item.email,
+        phone: item.phone,
+        company: item.company,
+        website: item.website,
+        address: item.address,
+        description: item.description,
+        country: item.country,
+        state: item.state,
+        citys: item.citys,
+      }));
+
+      // ✅ Insert into DB
+      const insertedLeads = await leadModel.insertMany(formattedLeads);
+
+      res.status(200).send({
+        message: `${insertedLeads.length} leads imported successfully`,
+        leads: insertedLeads,
+      });
+    } catch (error) {
+      console.error("❌ Error importing leads:", error);
+      res.status(500).send({ message: "Error while importing leads" });
+    }
   }
-});
-const upload = multer({ storage: storage });
-
-leadsRouter.post("/lead/import-excel", authenticateToken, upload.single("file"), async (req, res) => {
-  try {
-    const filePath = req.file.path;
-
-    // Read the Excel file
-    const workbook = xlsx.readFile(filePath);
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const data = xlsx.utils.sheet_to_json(sheet);
-
-    // Format and insert leads
-    const formattedLeads = data.map((item) => ({
-      status: item.status || "new",
-      source: item.source || "others",
-      visibility: item.visibility || "private",
-      tags: typeof item.tags === "string"
-        ? item.tags.split(",").map(t => t.trim())
-        : Array.isArray(item.tags) ? item.tags : [],
-      assigned: typeof item.assigned === "string"
-        ? item.assigned.split(",").map(a => a.trim())
-        : Array.isArray(item.assigned) ? item.assigned : [],
-      groups: item.groups || "",
-
-      name: item.name,
-      email: item.email,
-      phone: item.phone,
-      company: item.company,
-      website: item.website,
-      address: item.address,
-      description: item.description,
-      country: item.country,
-      state: item.state,
-      citys: item.citys
-    }));
-    // console.log("formattedLeadssssssssssssss", formattedLeads)
-
-    const insertedLeads = await leadModel.insertMany(formattedLeads);
-
-    res.status(200).send({
-      message: `${insertedLeads.length} leads imported successfully`,
-      leads: insertedLeads,
-
-    });
-    // console.log("lead dataaaaaaaaaaaaaaaaaa",insertedLeads)
-  } catch (error) {
-    console.error("❌ Error importing leads:", error);
-    res.status(500).send({ message: "Error while importing leads" });
-  }
-});
-
+);
 const XLSX = require("xlsx");
 
 leadsRouter.get("/lead/download-template", async (req, res) => {
