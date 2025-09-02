@@ -34,8 +34,8 @@ const customerSchema = new mongoose.Schema({
   // group: [{ type: String }],
   status: {
     type: String,
-    enum: ['active', 'inactive', 'declined'],
-    default: 'active'
+    // enum: ['active', 'inactive', 'declined'],
+    // default: 'active'
   },
   
   // privacy: { type: String }

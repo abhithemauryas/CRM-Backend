@@ -2,74 +2,73 @@ const express = require("express");
 const leadModel = require("../models/lead.model");
 const authenticateToken = require("../middleware/authMiddleware");
 const leadsRouter = express.Router();
+// multer for export excell sheet 
 const multer = require("multer");
 const xlsx = require("xlsx");
-
-// ✅ Use memory storage (safe for Render / Vercel)
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
-// ✅ Excel upload route
-leadsRouter.post(
-  "/lead/import-excel",
-  authenticateToken,
-  upload.single("file"),
-  async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      // ✅ Read Excel from memory buffer
-      const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const data = xlsx.utils.sheet_to_json(sheet);
-
-      // ✅ Format leads
-      const formattedLeads = data.map((item) => ({
-        status: item.status || "new",
-        source: item.source || "others",
-        visibility: item.visibility || "private",
-        tags:
-          typeof item.tags === "string"
-            ? item.tags.split(",").map((t) => t.trim())
-            : Array.isArray(item.tags)
-            ? item.tags
-            : [],
-        assigned:
-          typeof item.assigned === "string"
-            ? item.assigned.split(",").map((a) => a.trim())
-            : Array.isArray(item.assigned)
-            ? item.assigned
-            : [],
-        groups: item.groups || "",
-
-        name: item.name,
-        email: item.email,
-        phone: item.phone,
-        company: item.company,
-        website: item.website,
-        address: item.address,
-        description: item.description,
-        country: item.country,
-        state: item.state,
-        citys: item.citys,
-      }));
-
-      // ✅ Insert into DB
-      const insertedLeads = await leadModel.insertMany(formattedLeads);
-
-      res.status(200).send({
-        message: `${insertedLeads.length} leads imported successfully`,
-        leads: insertedLeads,
-      });
-    } catch (error) {
-      console.error("❌ Error importing leads:", error);
-      res.status(500).send({ message: "Error while importing leads" });
-    }
+const path = require("path");
+// const XLSX = require("xlsx");
+// Setup multer for file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/"); // create this folder if not exists
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
   }
-);
+});
+const upload = multer({ storage: storage });
+
+leadsRouter.post("/lead/import-excel", authenticateToken, upload.single("file"), async (req, res) => {
+  try {
+    const filePath = req.file.path;
+
+    // Read the Excel file
+    const workbook = xlsx.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(sheet);
+
+    // Format and insert leads
+    const formattedLeads = data.map((item) => ({
+      status: item.status || "new",
+      source: item.source || "others",
+      visibility: item.visibility || "private",
+      tags: typeof item.tags === "string"
+        ? item.tags.split(",").map(t => t.trim())
+        : Array.isArray(item.tags) ? item.tags : [],
+      assigned: typeof item.assigned === "string"
+        ? item.assigned.split(",").map(a => a.trim())
+        : Array.isArray(item.assigned) ? item.assigned : [],
+      groups: item.groups || "",
+
+      name: item.name,
+      email: item.email,
+      phone: item.phone,
+      company: item.company,
+      website: item.website,
+      address: item.address,
+      description: item.description,
+      country: item.country,
+      state: item.state,
+      citys: item.citys
+    }));
+    // console.log("formattedLeadssssssssssssss", formattedLeads)
+
+    const insertedLeads = await leadModel.insertMany(formattedLeads);
+
+    res.status(200).send({
+      message: `${insertedLeads.length} leads imported successfully`,
+      leads: insertedLeads,
+
+    });
+    // console.log("lead dataaaaaaaaaaaaaaaaaa",insertedLeads)
+  } catch (error) {
+    console.error("❌ Error importing leads:", error);
+    res.status(500).send({ message: "Error while importing leads" });
+  }
+});
+
 const XLSX = require("xlsx");
 
 leadsRouter.get("/lead/download-template", async (req, res) => {
@@ -210,6 +209,7 @@ leadsRouter.post("/lead/create", authenticateToken, async (req, res) => {
 
     await newLead.save();
     await newLead.populate("createdBy", "name email");
+    await newLead.populate("assigned", "name email");
     res.status(201).send({
       message: "Lead created successfully",
       lead: newLead
@@ -222,7 +222,18 @@ leadsRouter.post("/lead/create", authenticateToken, async (req, res) => {
 
 leadsRouter.get("/lead/all", async (req, res) => {
   try {
-    const leads = await leadModel.find().populate("createdBy", "name email");
+    const leads = await leadModel.find().populate("createdBy", "name email").populate("assigned", "name email"); // 👈 add this
+    res.status(200).send({ message: "Leads fetched successfully", leads });
+  } catch (error) {
+    console.error("❌ Error fetching leads:", error);
+    res.status(500).send({ message: "Server error during fetching leads" });
+
+  }
+})
+
+leadsRouter.get("/lead/options", async (req, res) => {
+  try {
+    const leads = await leadModel.find().select('name email');
     res.status(200).send({ message: "Leads fetched successfully", leads });
   } catch (error) {
     console.error("❌ Error fetching leads:", error);
@@ -234,7 +245,9 @@ leadsRouter.get("/lead/all", async (req, res) => {
 leadsRouter.get("/lead/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const lead = await leadModel.findById(id).lean(); // 👈 lean added
+    const lead = await leadModel.findById(id).populate("createdBy", "name email")
+      .populate("assigned", "name email")
+      .lean(); // 👈 lean added
     if (!lead) {
       return res.status(404).send({ message: "Lead not found" });
     }
@@ -246,7 +259,7 @@ leadsRouter.get("/lead/:id", async (req, res) => {
 });
 
 leadsRouter.get("/lead-status/:id/:stat", async (req, res) => {
-  const { id , stat:status } = req.params;
+  const { id, stat: status } = req.params;
   try {
 
     const lead = await leadModel.findById(id).lean(); // 👈 lean added
@@ -255,7 +268,7 @@ leadsRouter.get("/lead-status/:id/:stat", async (req, res) => {
     }
     console.log(status)
     await leadModel.findByIdAndUpdate(id, {
-      status 
+      status
     })
     res.status(200).send({ message: "Lead fetched successfully", lead });
 
@@ -265,6 +278,7 @@ leadsRouter.get("/lead-status/:id/:stat", async (req, res) => {
   }
 
 });
+
 
 
 leadsRouter.put("/lead/update/:id", authenticateToken, async (req, res) => {

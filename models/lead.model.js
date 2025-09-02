@@ -31,9 +31,8 @@ const leadSchema = new mongoose.Schema(
       ],
     },
     
-    assigned: {
-  type: [String],
-},
+    assigned: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+,
   groups: {
   type: String,
   enum: [

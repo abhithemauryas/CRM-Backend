@@ -205,5 +205,32 @@ customerRouter.put('/customer/:id',authenticateToken, async (req, res) => {
   }
 });
 
+customerRouter.get("/customer-status/:id/:status", async (req, res) => {
+  const { id , status } = req.params;
+  console.log(id,status)
+  try {
+
+    const customer = await customerModel.findById(id).lean(); // 👈 lean added
+    if (!customer) {
+      return res.status(404).send({ message: "customer not found" });
+    }
+    console.log(status)
+    await customerModel.findByIdAndUpdate(id, {
+      status 
+    })
+    res.status(200).send({ message: "customer fetched successfully", customer });
+    console.log(customer)
+
+  } catch (error) {
+    console.error("❌ Error finding single customer:", error);
+    res.status(500).send({ message: "Server error during customer update" });
+  }
+
+});
+
+
+
+
+
 module.exports = customerRouter;
 

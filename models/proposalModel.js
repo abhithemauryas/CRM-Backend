@@ -14,23 +14,34 @@ const proposalItemSchema = new mongoose.Schema(
 const proposalSchema = new mongoose.Schema(
   {
     subject: { type: String, required: true },
-    // relatedTo: { type: String, enum: ['lead', 'customer'], required: true },
-    // leadId: { type: mongoose.Schema.Types.ObjectId, ref: "Lead", required: true },
+
+    // 👇 Lead reference
+    leadId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Lead",   // 👈 Tumhare Lead model ka naam
+      required: true 
+    },
 
     discount: { type: String, default: "no-discount" },
-    visibility: { type: String, enaum: ['private', 'public'], default: "private" },
-    status:  String ,
+    visibility: {
+  type: String,
+  enum: ['public', 'private', 'personal', 'customs'], // add customs
+  default: 'private'
+},
+    status: String,
 
-    startDate: { type: Date,  },
-    dueDate: { type: Date, },
+    startDate: { type: Date },
+    dueDate: { type: Date },
 
     tags: [String],
-    assignees:[String],
-    // assignees: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
+    // 👇 User reference for multiple assignees
+    assignees: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+    ],
 
-    relatedTo: { type: String},
-    to:String,
+    relatedTo: { type: String },
+    to: String,
     addressLine1: String,
     addressLine2: String,
     email: String,
@@ -41,16 +52,16 @@ const proposalSchema = new mongoose.Schema(
     timezone: String,
     currency: String,
 
-    // allowComments: { type: Boolean, default: false },
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User",
-        //  required: true  
-        },
+    createdBy: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User"
+    },
 
-    // 👇 AddProposal.jsx item array
     items: [proposalItemSchema]
   },
   { timestamps: true }
 );
+
 
 const proposalModel = mongoose.model("Proposal", proposalSchema);
 

@@ -33,11 +33,14 @@ proposalRouter.get("/proposal/find/all",async(req,res)=>{
 
 proposalRouter.get("/proposal/:id",async(req,res)=>{
     try {
-        const proposal= await proposalModel.findById(req.params.id).populate("leadId") .populate("assignees");
+  const proposal = await proposalModel
+  .findById(req.params.id)
+  .populate("leadId", "name email phone")    // Lead ke specific fields
+  .populate("assignees", "name email role"); // User ke specific fields
     if (!proposal) {
       return res.status(404).send({ message: "Proposal not found" });
     }
-  res.status(200).send(proposal);
+  res.status(200).send({message:"Fetched Proposal Data:",proposal});
     } catch (error) {
         res.status(500).send({ message: "Error fetching proposal", error: error.message });   
     }
@@ -60,7 +63,7 @@ proposalRouter.put("/proposal/:id", async (req, res) => {
 });
 
 
-proposalRouter.delete("/proposal/:id", async (req, res) => {
+proposalRouter.delete("/proposal/delete/:id", async (req, res) => {
   try {
     const deletedProposal = await proposalModel.findByIdAndDelete(req.params.id);
     if (!deletedProposal) {

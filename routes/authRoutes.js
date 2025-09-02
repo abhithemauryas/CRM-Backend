@@ -39,6 +39,15 @@ userRouter.post("/user/register", async (req, res) => {
   }
 });
 
+userRouter.get('/employee/options', async(req, res) => {
+    try {
+        const employees = await userModel.find({ role: "employee" }).select("name email");
+        res.status(200).send({ message: "Employee options fetched successfully", employees });
+    } catch (error) {
+        return res.status(500).send({ message: "Server error during fetching employee options", employees: [] });  
+    }
+})
+
 // ✅ Login Route (by Email or Mobile)
 userRouter.post("/user/login", async (req, res) => {
   const { emailOrMobile, password } = req.body;
@@ -70,6 +79,31 @@ userRouter.post("/user/login", async (req, res) => {
     res.status(500).send({ message: "Server error during login" });
   }
 });
+
+
+userRouter.post("/user/forgot-password", async(req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await userModel.findOne({ email });
+
+    if (!user) {
+      return res.status(400).send({ message: "User not found" });
+    }
+
+    // Generate a password reset token (you can use JWT or any other method)
+    const resetToken = jwt.sign({ _id: user._id }, "your_jwt_secret", { expiresIn: "1h" });
+
+    // Send the reset token to the user's email (implement your email sending logic)
+    console.log(`Password reset token for ${email}: ${resetToken}`);
+
+    res.status(200).send({ message: "Password reset email sent successfully" });
+  } catch (error) {
+    console.error("❌ Error during password reset:", error);
+    res.status(500).send({ message: "Server error during password reset" });
+  }
+});
+
 
 module.exports = userRouter;
 
