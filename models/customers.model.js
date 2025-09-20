@@ -37,6 +37,7 @@ const customerSchema = new mongoose.Schema({
     // enum: ['active', 'inactive', 'declined'],
     // default: 'active'
   },
+
   
   // privacy: { type: String }
   createdBy:{type:mongoose.Schema.Types.ObjectId,ref:"User"},

@@ -12,7 +12,7 @@ const authenticateToken = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, "batman"); // Use .env in production
-        req.user = { _id: decoded._id }; 
+        req.user = { _id: decoded._id ,role: decoded.role }; 
         next();
     } catch (error) {
         return res.status(403).json({ message: "Invalid Token, Hey! Please Login first" });
